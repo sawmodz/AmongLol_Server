@@ -8,6 +8,10 @@ const io = new Server(server);
 
 const match = {};
 
+const shuffleArray = (inputArray) => {
+  inputArray.sort(() => Math.random() - 0.5);
+};
+
 const uuid = () => {
   return "xxxx-xxxx".replace(/[xy]/g, function (c) {
     var r = (Math.random() * 16) | 0,
@@ -34,6 +38,31 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("kickPlayer", (message) => {
+    myMatch = match[message.code];
+    myMatch.users = myMatch.users.filter((user) => {
+      return user != message.user;
+    });
+    match[message.code] = myMatch;
+    io.sockets.to(message.code).emit("kickPlayer", { user: message.user });
+  });
+
+  socket.on("startGame", (message) => {
+    const room = io.sockets.adapter.rooms.get(message.code);
+    if (room === undefined) return;
+    let roles = [1, 2, 3, 4, 5];
+    shuffleArray(roles);
+    let i = 0;
+    io.sockets.adapter.rooms.get(message.code).forEach((user) => {
+      io.sockets.to(user).emit("roles", { roles: roles[i] });
+      i++;
+    });
+  });
+
+  socket.on("leaveParty", (message) => {
+    socket.leave(message.code);
+  });
+
   socket.on("joinParty", (message) => {
     const room = io.sockets.adapter.rooms.get(message.code);
     if (room === undefined) {
@@ -45,7 +74,7 @@ io.on("connection", (socket) => {
         socket.join(message.code);
       }
 
-      socket.emit("joinParty", { error: 1 });
+      socket.emit("joinParty", { error: 0, match: match[message.code] });
       return;
     }
     const sizeOfRoom = Array.from(room).length;
@@ -55,7 +84,10 @@ io.on("connection", (socket) => {
     } else {
       socket.join(message.code);
       const myMatch = match[message.code];
-      if (myMatch.users.includes(message.nickname)) return;
+      if (myMatch.users.includes(message.nickname)) {
+        socket.emit("joinParty", { id: message.code, match: myMatch });
+        return;
+      }
       myMatch.nickname = message.nickname;
       myMatch.users.push(message.nickname);
       match[message.code] = myMatch;
