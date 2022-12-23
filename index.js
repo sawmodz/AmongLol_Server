@@ -63,6 +63,16 @@ io.on("connection", (socket) => {
     socket.leave(message.code);
   });
 
+  socket.on("chooseRoles", (message) => {
+    if (match[message.code] === undefined) return;
+    let myMatch = match[message.code];
+    myMatch.status = 2;
+    match[message.code] = myMatch;
+    io.sockets
+      .to(message.code)
+      .emit("chooseRoles", { match: myMatch, status: 2 });
+  });
+
   socket.on("joinParty", (message) => {
     const room = io.sockets.adapter.rooms.get(message.code);
     if (room === undefined) {
