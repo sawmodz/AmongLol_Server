@@ -73,6 +73,24 @@ io.on("connection", (socket) => {
       .emit("chooseRoles", { match: myMatch, status: 2 });
   });
 
+  socket.on("valid", (message) => {
+    let myMatch = match[message.code];
+    if (myMatch === undefined) return;
+    let myResult = myMatch.result;
+    if (myResult === undefined) myResult = [];
+    myResult.push({
+      user: message.player,
+      result: message.reply,
+      playerRoles: message.roles,
+    });
+    if (myResult.length === 5) {
+      io.sockets.to(message.code).emit("end", { myResult: myResult });
+      return;
+    }
+    myMatch.result = myResult;
+    socket.emit("valid", {});
+  });
+
   socket.on("joinParty", (message) => {
     const room = io.sockets.adapter.rooms.get(message.code);
     if (room === undefined) {
